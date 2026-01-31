@@ -1,0 +1,43 @@
+# The formatter multiplexer - https://github.com/numtide/treefmt
+
+# Do not exit with error if a configured formatter is missing
+# Env $TREEFMT_ALLOW_MISSING_FORMATTER
+allow-missing-formatter = true
+# Exclude files or directories matching the specified globs
+# Env $TREEFMT_EXCLUDES
+excludes = [".rumdl_cache/*", ".git/*", ".jj/*"]
+# Exit with error if any changes were made during execution
+# Useful for CI
+# Env $TREEFMT_FAIL_ON_CHANGE
+fail-on-change = false
+# A list of formatters to apply
+# Defaults to all configured formatters
+# Env $TREEFMT_FORMATTERS
+formatters = ["rumdl", "tombi", "oxfmt"]
+
+# The method used to traverse the files within the tree root
+# Currently, we support 'auto', 'git', 'jujutsu', or 'filesystem'
+# Env $TREEFMT_WALK
+# walk = "filesystem"
+
+[formatter.rumdl]
+command = "rumdl"
+options = ["fmt"]
+priority = 1
+includes = ["*.md"]
+
+[formatter.mdsf]
+command = "mdsf"
+options = ["format"]
+includes = ["*.md"]
+priority = 0
+
+[formatter.tombi]
+command = "tombi"
+options = ["format"]
+includes = ["*.toml"]
+
+[formatter.oxfmt]
+command = "oxfmt"
+options = []
+includes = ["*.js", "*.ts"]

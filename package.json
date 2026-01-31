@@ -1,0 +1,10 @@
+{
+  "peerDependencies": {
+    "@carbonteq/fp": "^0.9.1"
+  },
+  "devDependencies": {
+    "@typescript/native-preview": "^7.0.0-dev.20260131.1",
+    "oxlint": "^1.42.0",
+    "oxlint-tsgolint": "^0.11.4"
+  }
+}

@@ -1,0 +1,6 @@
+[tools]
+"aqua:numtide/treefmt" = "latest"
+"github:hougesen/mdsf" = "latest"
+"npm:oxfmt" = "latest"
+rumdl = "latest"
+tombi = "latest"
