@@ -2,6 +2,15 @@
 
 The `Option<T>` type represents a value that may or may not be present. It eliminates the need for `null` and `undefined` checks through the type system.
 
+**Note on async:**
+
+- Core `Option` accepts Promise-returning mappers in `map`/`flatMap`/`zip`/`flatZip`/`filter`. The container becomes `Option<Promise<T>>`. Resolve with `await opt.unwrap()` or `await opt.toPromise()`.
+- Explicit `*Async` helpers (`mapAsync`, `flatMapAsync`, `zipAsync`, `filterAsync`, `tapAsync`, `matchAsync`, `foldAsync`, etc.) live on `ExperimentalOption`. If you want to use those, alias it:
+
+```typescript
+import { ExperimentalOption as Option } from "@carbonteq/fp";
+```
+
 ## Variants
 
 - **`Some<T>`** - Contains a value of type `T`
@@ -59,6 +68,15 @@ Option.fromPredicate(age, (a) => a >= 18); // Some(25)
 Option.fromPredicate(15, (a) => a >= 18); // None
 ```
 
+### `Option.fromPromise(promise)`
+
+Wrap a `Promise<Option<T>>` as an `Option<Promise<T>>`, preserving short-circuit behavior.
+
+```typescript
+const option = Option.fromPromise(fetchOptionalUser());
+const user = await option.unwrap();
+```
+
 ## Type Guards
 
 ### `.isSome()`
@@ -103,6 +121,8 @@ Option.Some("hello")
 
 ### `.mapAsync(fn)`
 
+**ExperimentalOption only.**
+
 Transform using an async function. Returns `Promise<Option<U>>`.
 
 ```typescript
@@ -126,6 +146,8 @@ const email = findUser(userId)
 
 ### `.flatMapAsync(fn)`
 
+**ExperimentalOption only.**
+
 Chain async operations that return Options.
 
 ```typescript
@@ -147,6 +169,8 @@ Option.Some(100).zip((price) => price * 0.9); // Some([100, 90])
 ```
 
 ### `.zipAsync(fn)`
+
+**ExperimentalOption only.**
 
 Pair with an async derived value.
 
@@ -170,6 +194,8 @@ const productData = Option.Some(productId).flatZip((id) => fetchProductPrice(id)
 ```
 
 ### `.flatZipAsync(fn)`
+
+**ExperimentalOption only.**
 
 Combine with an async Option.
 
@@ -197,6 +223,8 @@ const valid = Option.Some(password)
 ```
 
 ### `.filterAsync(predicate)`
+
+**ExperimentalOption only.**
 
 Filter using an async predicate.
 
@@ -226,6 +254,8 @@ Option.None.match({
 
 ### `.fold(onSome, onNone)`
 
+**ExperimentalOption only.**
+
 Positional argument variant of `match` (FP convention).
 
 ```typescript
@@ -238,6 +268,8 @@ Option.Some(42).fold(
 
 ### `.foldAsync(onSome, onNone)`
 
+**ExperimentalOption only.**
+
 Async pattern matching with positional arguments.
 
 ```typescript
@@ -248,6 +280,8 @@ await Option.Some(userId).foldAsync(
 ```
 
 ### `.matchAsync({ Some, None })`
+
+**ExperimentalOption only.**
 
 Async pattern matching with object syntax.
 
@@ -310,6 +344,8 @@ Option.None.mapOr(0, (x) => x * 2); // 0
 
 ### `.mapOrAsync(default, fn)`
 
+**ExperimentalOption only.**
+
 Async variant of `mapOr`.
 
 ```typescript
@@ -330,6 +366,8 @@ Option.Some(user)
 
 ### `.tapAsync(fn)`
 
+**ExperimentalOption only.**
+
 Execute an async side effect for `Some`.
 
 ```typescript
@@ -347,6 +385,15 @@ Convert `Option` to `Result`. `Some` becomes `Ok`, `None` becomes `Err` with the
 ```typescript
 Option.Some(42).toResult("was none"); // Ok(42)
 Option.None.toResult("was none"); // Err("was none")
+```
+
+### `.toPromise()`
+
+Resolve the inner Promise (if any) and keep the Option shape.
+
+```typescript
+const resolved = await Option.Some(Promise.resolve(42)).toPromise();
+// Option.Some(42)
 ```
 
 ## Inner Transformations
@@ -383,6 +430,8 @@ Option.any(Option.None, Option.None, Option.None); // None
 ```
 
 ## Generator Methods
+
+**ExperimentalOption only.**
 
 ### `Option.gen(function* () { ... })`
 

@@ -2,6 +2,15 @@
 
 The `Result<T, E>` type represents a value that can be either a success (`Ok`) or a failure (`Err`). It makes error handling explicit through the type system.
 
+**Note on async:**
+
+- Core `Result` accepts Promise-returning mappers in `map`/`flatMap`/`zip`/`flatZip`/`zipErr`/`validate`. The container becomes `Result<Promise<T>, E>`. Resolve with `await res.unwrap()` or `await res.toPromise()`.
+- Explicit `*Async` helpers (`mapAsync`, `flatMapAsync`, `zipAsync`, `mapErrAsync`, `mapBothAsync`, `orElseAsync`, `validateAsync`, `matchAsync`, `foldAsync`, `tapAsync`, etc.) live on `ExperimentalResult`. If you want to use those, alias it:
+
+```typescript
+import { ExperimentalResult as Result } from "@carbonteq/fp";
+```
+
 ## Variants
 
 - **`Ok<T>`** - Contains a success value of type `T`
@@ -57,6 +66,15 @@ const failed = Result.fromPredicate(45, (s) => s >= 60, "Score too low");
 // Err("Score too low")
 ```
 
+### `Result.fromPromise(promise)`
+
+Wrap a `Promise<Result<T, E>>` as a `Result<Promise<T>, E>`.
+
+```typescript
+const res = Result.fromPromise(fetchResult());
+const value = await res.unwrap();
+```
+
 ### `Result.tryCatch(fn, onError)`
 
 Wrap a synchronous operation in a `Result`, catching any exceptions.
@@ -78,7 +96,7 @@ parseJson("invalid json"); // Err(SyntaxError: ...)
 Wrap an asynchronous operation in a `Result`, catching any exceptions.
 
 ```typescript
-async function fetchUserData(id: string): Promise<Result<{ name: string }, Error>> {
+function fetchUserData(id: string): Result<Promise<{ name: string }>, Error> {
   return Result.tryAsyncCatch(
     async () => {
       const response = await fetch(`/api/users/${id}`);
@@ -87,6 +105,8 @@ async function fetchUserData(id: string): Promise<Result<{ name: string }, Error
     (e) => (e instanceof Error ? e : new Error(String(e))),
   );
 }
+
+const user = await fetchUserData("123").unwrap();
 ```
 
 ## Type Guards
@@ -144,6 +164,8 @@ Result.Ok("hello")
 
 ### `.mapAsync(fn)`
 
+**ExperimentalResult only.**
+
 Transform using an async function. Returns `Promise<Result<U, E>>`.
 
 ```typescript
@@ -164,6 +186,8 @@ Result.Err("initial").flatMap((x) => Result.Ok(x + 1)); // Err("initial")
 ```
 
 ### `.flatMapAsync(fn)`
+
+**ExperimentalResult only.**
 
 Chain async operations that return Results.
 
@@ -187,6 +211,8 @@ Result.Ok(user).zip((u) => u.permissions.length); // Ok([user, 5])
 
 ### `.zipAsync(fn)`
 
+**ExperimentalResult only.**
+
 Pair with an async derived value.
 
 ```typescript
@@ -208,6 +234,8 @@ Result.Err("init").flatZip((x) => Result.Ok(5)); // Err("init")
 ```
 
 ### `.flatZipAsync(fn)`
+
+**ExperimentalResult only.**
 
 Combine with an async Result.
 
@@ -231,6 +259,8 @@ Result.Ok(42).mapErr((e) => `Error: ${e}`);
 ```
 
 ### `.mapErrAsync(fn)`
+
+**ExperimentalResult only.**
 
 Transform the error using an async function.
 
@@ -271,6 +301,8 @@ Result.Err("timeout").mapBoth(
 
 ### `.mapBothAsync(fnOk, fnErr)`
 
+**ExperimentalResult only.**
+
 Async variant of `mapBoth`.
 
 ```typescript
@@ -302,6 +334,8 @@ Result.Err("init").validate(validators); // Err("init") - validators not run
 
 ### `.validateAsync([fn, ...])`
 
+**ExperimentalResult only.**
+
 Async variant of `validate`. Always returns `Promise<Result<T, E | VE[]>>`.
 
 ```typescript
@@ -329,6 +363,8 @@ Result.Err("fail").orElse((e) => Result.Err("critical")); // Err("critical")
 ```
 
 ### `.orElseAsync(fn)`
+
+**ExperimentalResult only.**
 
 Async variant of `orElse`.
 
@@ -372,6 +408,8 @@ Result.Ok(42).fold(
 
 ### `.foldAsync(onOk, onErr)`
 
+**ExperimentalResult only.**
+
 Async pattern matching with positional arguments.
 
 ```typescript
@@ -383,6 +421,8 @@ await Result.Ok(userId).foldAsync(
 
 ### `.matchAsync({ Ok, Err })`
 
+**ExperimentalResult only.**
+
 Async pattern matching with object syntax.
 
 ```typescript
@@ -393,6 +433,8 @@ await apiResult.matchAsync({
 ```
 
 ### `.matchPartial({ Ok?, Err? }, getDefault)`
+
+**ExperimentalResult only.**
 
 Pattern match with a subset of cases, using a default for unhandled cases.
 
@@ -468,6 +510,8 @@ Result.Ok(42)
 
 ### `.tapAsync(fn)`
 
+**ExperimentalResult only.**
+
 Execute an async side effect for `Ok` values.
 
 ```typescript
@@ -487,6 +531,8 @@ Result.Err("Connection failed")
 ```
 
 ### `.tapErrAsync(fn)`
+
+**ExperimentalResult only.**
 
 Execute an async side effect for `Err` values.
 
@@ -519,6 +565,8 @@ Result.any(Result.Err("Error 1"), Result.Err("Error 2"), Result.Err("Error 3"));
 ```
 
 ## Generator Methods
+
+**ExperimentalResult only.**
 
 ### `Result.gen(function* () { ... })`
 
@@ -579,6 +627,15 @@ Convert `Result` to `Option`, discarding error information. `Ok` becomes `Some`,
 ```typescript
 Result.Ok(42).toOption(); // Some(42)
 Result.Err("fail").toOption(); // None
+```
+
+### `.toPromise()`
+
+Resolve the inner Promise (if any) and keep the Result shape.
+
+```typescript
+const resolved = await Result.Ok(Promise.resolve(42)).toPromise();
+// Result.Ok(42)
 ```
 
 ### `.flip()`

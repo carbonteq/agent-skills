@@ -223,9 +223,9 @@ async function fetchWithFallback(): Promise<Result<Data, never>> {
 
 // Run all validators, collect ALL errors
 const validators = [
-  (x: number) => (x > 0 ? Result.ok(true) : Result.Err("must be positive")),
-  (x: number) => (x < 100 ? Result.ok(true) : Result.Err("must be < 100")),
-  (x: number) => (x % 2 === 0 ? Result.ok(true) : Result.Err("must be even")),
+  (x: number) => (x > 0 ? Result.Ok(true) : Result.Err("must be positive")),
+  (x: number) => (x < 100 ? Result.Ok(true) : Result.Err("must be < 100")),
+  (x: number) => (x % 2 === 0 ? Result.Ok(true) : Result.Err("must be even")),
 ];
 
 Result.Ok(42).validate(validators);
@@ -321,7 +321,7 @@ const message2 = Result.Err<string, string>("fail").fold(
 // ============================================
 
 // Execute side effects without breaking chain
-const result = Result.Ok([1, 2, 3])
+const tapped = Result.Ok([1, 2, 3])
   .tap((arr) => console.log(`Processing ${arr.length} items`))
   .map((arr) => arr.map((x) => x * 2))
   .tap((arr) => console.log(`Result: ${arr}`));

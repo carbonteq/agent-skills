@@ -2,6 +2,8 @@
 
 `Flow` provides a unified generator interface for working with both `Option` and `Result` types simultaneously. It allows yielding both types in the same generator, automatically short-circuiting on `Option.None` or `Result.Err`.
 
+**Note:** Flow is built on `ExperimentalOption` and `ExperimentalResult`. Use those (or alias them) when yielding values to Flow.
+
 ## Overview
 
 The return type of a `Flow` generator is always a `Result<T, E | UnwrappedNone>`, where:
@@ -17,7 +19,12 @@ The return type of a `Flow` generator is always a `Result<T, E | UnwrappedNone>`
 Unified generator for mixing `Option` and `Result` in synchronous workflows.
 
 ```typescript
-import { Flow, Option, Result, UnwrappedNone } from "@carbonteq/fp";
+import {
+  Flow,
+  ExperimentalOption as Option,
+  ExperimentalResult as Result,
+  UnwrappedNone,
+} from "@carbonteq/fp";
 
 const result = Flow.gen(function* () {
   const a = yield* Option.Some(5); // Unwraps Option<number> -> number
@@ -35,6 +42,8 @@ console.log(result.unwrap()); // 35
 ### `Flow.genAdapter(function* ($) { ... })`
 
 Adapter variant for better type inference in complex chains. The `$` function wraps both `Option` and `Result` values.
+
+The adapter also provides `$.fail(error)` to yield an error directly without creating a `FlowError` subclass.
 
 ```typescript
 const result = Flow.genAdapter(function* ($) {
@@ -63,6 +72,8 @@ const result = await Flow.asyncGen(async function* () {
 ### `Flow.asyncGenAdapter(async function* ($) { ... })`
 
 Async variant with adapter that handles both sync and async operations automatically.
+
+The adapter also provides `$.fail(error)`.
 
 ```typescript
 const result = await Flow.asyncGenAdapter(async function* ($) {
@@ -139,7 +150,7 @@ const onlyOptions = Flow.gen(function* () {
 
 // Only Results
 const onlyResults = Flow.gen(function* () {
-  const a = yield* Result Ok<number, string>(1);
+  const a = yield* Result.Ok<number, string>(1);
   const b = yield* Result.Ok("hello");
   return { a, b };
 });
@@ -222,17 +233,16 @@ const result = await Flow.asyncGenAdapter(async function* ($) {
 async function getProduct(id: string): Promise<Result<Product, Error>> {
   return Flow.asyncGenAdapter(async function* ($) {
     // Try cache first
-    const cached = yield* $(Option.fromNullable(await cache.get(id)));
-
-    if (cached) {
-      return cached;
+    const cached = Option.fromNullable(await cache.get(id));
+    if (cached.isSome()) {
+      return cached.unwrap();
     }
 
     // Cache miss - fetch from DB
     const product = yield* $(await db.products.findById(id));
 
     // Update cache asynchronously (don't await)
-    cache.set(id, product).catch(() => {});
+    cache.set(id, product);
 
     return product;
   });
@@ -242,7 +252,7 @@ async function getProduct(id: string): Promise<Result<Product, Error>> {
 ### Multi-Step Validation with Errors
 
 ```typescript
-const result = Flow.gen(function* ($) {
+const result = Flow.genAdapter(function* ($) {
   const input = yield* $(parseInput(rawString));
 
   // Validation with custom FlowError

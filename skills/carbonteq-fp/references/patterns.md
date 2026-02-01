@@ -2,6 +2,12 @@
 
 Common patterns and anti-patterns when using `@carbonteq/fp`.
 
+**Note:** Flow examples use `ExperimentalOption`/`ExperimentalResult`. You can alias them for brevity:
+
+```typescript
+import { ExperimentalOption as Option, ExperimentalResult as Result, Flow } from "@carbonteq/fp";
+```
+
 ## Data Validation Pipeline
 
 Create a validation pipeline that collects all errors at once.
@@ -19,13 +25,13 @@ function validateUser(input: CreateUserInput): Result<CreateUserInput, string[]>
   return Result.Ok(input).validate([
     ({ email }) =>
       /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-        ? Result.ok(true)
+        ? Result.Ok(true)
         : Result.Err("Invalid email format"),
     ({ password }) =>
-      password.length >= 8 ? Result.ok(true) : Result.Err("Password must be at least 8 characters"),
+      password.length >= 8 ? Result.Ok(true) : Result.Err("Password must be at least 8 characters"),
     ({ password }) =>
-      /[A-Z]/.test(password) ? Result.ok(true) : Result.Err("Password must contain uppercase"),
-    ({ age }) => (age >= 18 ? Result.ok(true) : Result.Err("Must be 18 or older")),
+      /[A-Z]/.test(password) ? Result.Ok(true) : Result.Err("Password must contain uppercase"),
+    ({ age }) => (age >= 18 ? Result.Ok(true) : Result.Err("Must be 18 or older")),
   ]);
 }
 
@@ -43,7 +49,7 @@ const result = validateUser({
 Chain multiple API calls where each depends on the previous result.
 
 ```typescript
-import { Result, Flow } from "@carbonteq/fp";
+import { ExperimentalResult as Result, Flow } from "@carbonteq/fp";
 
 async function getUserOrders(userId: string): Promise<Result<Order[], Error>> {
   return Flow.asyncGenAdapter(async function* ($) {
@@ -81,7 +87,7 @@ async function getConfigWithFallbacks(key: string): Promise<Result<string, never
 Safely access nested optional properties.
 
 ```typescript
-import { Option, Flow } from "@carbonteq/fp";
+import { ExperimentalOption as Option } from "@carbonteq/fp";
 
 interface User {
   profile?: {
@@ -94,12 +100,12 @@ interface User {
 }
 
 function getEmailNotificationSetting(user: User): Option<boolean> {
-  return Flow.gen(function* () {
+  return Option.gen(function* () {
     const profile = yield* Option.fromNullable(user.profile);
     const settings = yield* Option.fromNullable(profile.settings);
     const notifications = yield* Option.fromNullable(settings.notifications);
-    return Option.Some(notifications.email);
-  }).flatMap((x) => x); // Flatten Option<Option<boolean>>
+    return notifications.email;
+  });
 }
 
 // Or more concisely with flatMap
@@ -150,7 +156,7 @@ function parseJsonSafely(json: string): Result<unknown, Error> {
 }
 
 // Async version
-async function fetchJsonSafely(url: string): Promise<Result<unknown, Error>> {
+function fetchJsonSafely(url: string): Result<Promise<unknown>, Error> {
   return Result.tryAsyncCatch(
     async () => {
       const response = await fetch(url);
@@ -159,6 +165,8 @@ async function fetchJsonSafely(url: string): Promise<Result<unknown, Error>> {
     (e) => (e instanceof Error ? e : new Error(String(e))),
   );
 }
+
+const data = await fetchJsonSafely("/api/data").unwrap();
 ```
 
 ## Cache-Aside Pattern
@@ -166,22 +174,21 @@ async function fetchJsonSafely(url: string): Promise<Result<unknown, Error>> {
 Implement cache-aside with Option/Result.
 
 ```typescript
-import { Option, Result, Flow } from "@carbonteq/fp";
+import { ExperimentalOption as Option, ExperimentalResult as Result, Flow } from "@carbonteq/fp";
 
 async function getProduct(id: string): Promise<Result<Product, Error>> {
   return Flow.asyncGenAdapter(async function* ($) {
     // Try cache first (returns Option)
-    const cached = yield* $(Option.fromNullable(await cache.get(id)));
-
-    if (cached) {
-      return Result.Ok(cached);
+    const cached = Option.fromNullable(await cache.get(id));
+    if (cached.isSome()) {
+      return cached.unwrap();
     }
 
     // Cache miss - fetch from database
     const product = yield* $(await db.products.findById(id));
 
     // Update cache (fire and forget)
-    cache.set(id, product).catch(() => {});
+    cache.set(id, product);
 
     return product;
   });

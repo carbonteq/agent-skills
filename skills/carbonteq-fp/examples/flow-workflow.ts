@@ -1,4 +1,10 @@
-import { Flow, FlowError, Option, Result, UnwrappedNone } from "@carbonteq/fp";
+import {
+  Flow,
+  FlowError,
+  ExperimentalOption as Option,
+  ExperimentalResult as Result,
+  UnwrappedNone,
+} from "@carbonteq/fp";
 
 // ============================================
 // Basic Flow.gen - Mixed Option/Result
@@ -175,9 +181,7 @@ function validateEmail(email: string): Result<string, Error> {
 }
 
 function validateAge(age: number): Result<number, Error> {
-  return age >= 18
-    ? Result.Ok(age)
-    : Result.Err(new Error("Must be 18 or older"));
+  return age >= 18 ? Result.Ok(age) : Result.Err(new Error("Must be 18 or older"));
 }
 
 async function createUser(rawInput: unknown) {
@@ -221,16 +225,10 @@ async function fetchLikes(userId: number): Promise<Result<number, Error>> {
 async function fetchUserSummary(userId: number) {
   return await Flow.asyncGenAdapter(async function* ($) {
     // Fetch user and profile in parallel
-    const [user, profile] = yield* $(Result.all(
-      getUser(userId),
-      getProfile(userId)
-    ));
+    const [user, profile] = yield* $(Result.all(getUser(userId), getProfile(userId)));
 
     // Fetch posts and likes in parallel
-    const [posts, likes] = yield* $(Result.all(
-      fetchPosts(user.id),
-      fetchLikes(user.id)
-    ));
+    const [posts, likes] = yield* $(Result.all(fetchPosts(user.id), fetchLikes(user.id)));
 
     return { user, profile, posts, likes };
   });
@@ -258,17 +256,16 @@ async function fetchFromDb<T>(key: string): Promise<T> {
 async function getCachedOrDb<T>(key: string): Promise<Result<T, Error>> {
   return Flow.asyncGenAdapter(async function* ($) {
     // Try cache first (returns Option)
-    const cached = yield* $(await getFromCache<T>(key));
-
-    if (cached) {
-      return Result.Ok(cached);
+    const cached = await getFromCache<T>(key);
+    if (cached.isSome()) {
+      return cached.unwrap();
     }
 
     // Cache miss - fetch from DB (returns Result)
     const value = yield* $(await getFromDatabase<T>(key));
 
     // Update cache (fire and forget, don't await)
-    cache.set(key, value).catch(() => {});
+    cache.set(key, value);
 
     return value;
   });
@@ -278,17 +275,15 @@ async function getCachedOrDb<T>(key: string): Promise<Result<T, Error>> {
 // Combining independent Options
 // ============================================
 
-const optionCombination = Flow.gen(function* () {
+const optionCombination = Flow.genAdapter(function* ($) {
   const a = yield* Option.Some(1);
   const b = yield* Option.Some(2);
   const c = yield* Option.fromNullable(3);
 
   // Use Option.all to combine into tuple
-  const tuple = yield* $(Option.all(
-    Option.some(a + 1),
-    Option.some(b + 2),
-    Option.fromNullable(c + 3)
-  ));
+  const tuple = yield* $(
+    Option.all(Option.Some(a + 1), Option.Some(b + 2), Option.fromNullable(c + 3)),
+  );
 
   return tuple;
 });
@@ -309,7 +304,7 @@ const onlyOptions = Flow.gen(function* () {
 
 // Only Results -> Result<T, E>
 const onlyResults = Flow.gen(function* () {
-  const a = yield* Result Ok<number, string>(1);
+  const a = yield* Result.Ok<number, string>(1);
   const b = yield* Result.Ok("hello");
   return { a, b };
 });
@@ -318,7 +313,7 @@ const onlyResults = Flow.gen(function* () {
 // Mixed -> Result<T, E | UnwrappedNone>
 const mixed = Flow.gen(function* () {
   const a = yield* Option.Some(1);
-  const b = yield* Result Ok<number, string>(2);
+  const b = yield* Result.Ok<number, string>(2);
   return a + b;
 });
 // Result<number, string | UnwrappedNone>
